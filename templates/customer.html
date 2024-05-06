@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Customer Table</title>
+    <link rel="stylesheet" href="../static/css/styles.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Customer Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+
+      <div id="table"></div>
+      <dialog id="deletemodal" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button id="deleteclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button id="deleteconfirm" class="button">Delete</button>
+
+        <button id="deletecancel" class="button">Cancel</button>
+      </dialog>
+      <dialog id="editmodal" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button id="editclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button id="editconfirm" class="button">
+          Confirm
+        </button>
+
+        <button id="editcancel" class="button">Cancel</button>
+      </div>
+      <dialog id="addmodal" class="modal">
+        <header>
+          <h2>Add entry</h2>
+          <button id="addclose" clase="close">Close</button>
+        </header>
+
+        <form id="addform">
+            <input title="firstname" placeholder="Firstname ex. Kronii" type="text" name="firstname" required> </br>
+            <input title="lastname" placeholder="Lastname ex. Ouro" type="text" name="lastname" required> </br>
+            <input title="13 digit number" placeholder="National ID ex. 1234567890123" type="text" pattern="[0-9]{13}" name="national_id" required> </br>
+            <input title="passport" placeholder="Passport Number ex. AB123456" type="text" name="passport" required> </br>
+            <input title="date_of_birth" placeholder="Date of Birth" type="date" name="date_of_birth" required> </br>
+            <select title="gender" name="gender" id="genderselect">
+                <option value="">--Please choose your gender--</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>  </br>
+            <input title="email" placeholder="Email ex. name@mail.com" type="email" name="email" required> </br>
+            <input title="password" placeholder="Password ex. AK$ef15s-oLS" type="password" name="password" maxlength="20" required> </br>
+            <button id="addconfirm" type="submit"> Submit </button>
+        </form>
+      </dialog>
+      <button id="addbutton" class="addbutton">Add</button>
+    </dialog>
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script src="../static/js/customer.js"></script>
+  </body>
+</html>

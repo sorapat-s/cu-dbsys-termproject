@@ -1,0 +1,265 @@
+<html>
+  <head>
+    <title>Editable Table</title>
+    <link rel="stylesheet" href="../static/mermaid.min.css" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Editable Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+
+      <div id="table"></div>
+      <div id="delpopup" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button class="close" onclick="togglePopUp('delpopup')">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button class="button-border button-success" onclick="deleteEntry()">
+          Delete
+        </button>
+
+        <button
+          class="button-border button-error pull-right"
+          onclick="togglePopUp('delpopup')"
+        >
+          Cancel
+        </button>
+      </div>
+      <div id="editpopup" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button class="close" onclick="cancelEdit()">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button class="button-border button-success" onclick="editEntry()">
+          Confirm
+        </button>
+
+        <button
+          class="button-border button-error pull-right"
+          onclick="cancelEdit()"
+        >
+          Cancel
+        </button>
+      </div>
+      <button class="addbutton">Add</button>
+    </div>
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script>
+      var curr_id = -1;
+      var curr_data = "",
+        next_data = "",
+        attr_id = "",
+        target;
+      const tableDiv = document.getElementById("table");
+
+      function editEntry() {
+        confirm_edit = false;
+        fetch("/api/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: curr_id,
+            type: "edit",
+            [attr_id]: next_data,
+          }),
+        });
+        curr_data = "";
+        next_data = "";
+        curr_id = -1;
+        attr_id = "";
+        togglePopUp("editpopup");
+      }
+
+      function cancelEdit() {
+        console.log("cancelEdit");
+        target.textContent = curr_data;
+        togglePopUp("editpopup");
+      }
+
+      function togglePopUp(id) {
+        console.log("toggle");
+        document.getElementById(id).classList.toggle("active");
+      }
+
+      function deleteEntry() {
+        var ent = curr_id;
+        console.log("deleting");
+        console.log(ent);
+        if (ent > 0) {
+          fetch("/api/data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: ent,
+              type: "delete",
+            }),
+          });
+        } else {
+          alert("an error has occured. please try again");
+        }
+        togglePopUp("delpopup");
+        gridobj.forceRender();
+        curr_id = -1;
+      }
+
+      function toggleDeletePopup(data) {
+        curr_id = data;
+        console.log(curr_id);
+        togglePopUp("delpopup");
+      }
+
+      function toggleEditPopup() {
+        console.log("edit triggered");
+        togglePopUp("editpopup");
+        document.getElementById(
+          "edittext"
+        ).innerText = `Change "${curr_data}" to "${next_data}"`;
+      }
+
+      const updateUrl = (prev, query) => {
+        return (
+          prev +
+          (prev.indexOf("?") >= 0 ? "&" : "?") +
+          new URLSearchParams(query).toString()
+        );
+      };
+
+      const editableCellAttributes = (data, row, col) => {
+        if (row) {
+          return {
+            contentEditable: "true",
+            "data-element-id": row.cells[0].data,
+          };
+        } else {
+          return {};
+        }
+      };
+
+      var gridobj = new gridjs.Grid({
+        columns: [
+          { id: "id", name: "ID" },
+          { id: "name", name: "Name", attributes: editableCellAttributes },
+          { id: "age", name: "Age" },
+          {
+            id: "address",
+            name: "Address",
+            sort: false,
+            attributes: editableCellAttributes,
+          },
+          { id: "phone", name: "Phone Number", sort: false },
+          { id: "email", name: "Email" },
+          {
+            id: "buttons",
+            sort: false,
+            formatter: (cell, row) =>
+              gridjs.html(
+                `<button type="button" onclick="toggleDeletePopup(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+              ),
+          },
+        ],
+        server: {
+          url: "/api/data",
+          then: (results) => results.data,
+          total: (results) => results.total,
+        },
+        search: {
+          enabled: true,
+          server: {
+            url: (prev, search) => {
+              return updateUrl(prev, { search });
+            },
+          },
+        },
+        sort: {
+          enabled: true,
+          multiColumn: true,
+          server: {
+            url: (prev, columns) => {
+              const columnIds = [
+                "id",
+                "name",
+                "age",
+                "address",
+                "phone",
+                "email",
+              ];
+              const sort = columns.map(
+                (col) =>
+                  (col.direction === 1 ? "+" : "-") + columnIds[col.index]
+              );
+              return updateUrl(prev, { sort });
+            },
+          },
+        },
+        pagination: {
+          enabled: true,
+          server: {
+            url: (prev, page, limit) => {
+              return updateUrl(prev, { start: page * limit, length: limit });
+            },
+          },
+        },
+      });
+      gridobj.render(tableDiv);
+
+      let savedValue;
+
+      tableDiv.addEventListener("focusin", (ev) => {
+        if (ev.target.tagName === "TD") {
+          savedValue = ev.target.textContent;
+        }
+      });
+
+      tableDiv.addEventListener("focusout", (ev) => {
+        if (ev.target.tagName === "TD") {
+          if (savedValue !== ev.target.textContent) {
+            console.log("focus trig");
+            target = ev.target;
+            curr_id = ev.target.dataset.elementId;
+            curr_data = savedValue;
+            next_data = ev.target.textContent;
+            console.log("column_id", ev.target.dataset.columnId);
+            console.log("column_id", typeof ev.target.dataset.columnId);
+            console.log("element_id", ev.target.dataset.elementId);
+            console.log("element_id", typeof ev.target.dataset.elementId);
+            attr_id = ev.target.dataset.columnId;
+            toggleEditPopup();
+          }
+          savedValue = undefined;
+        }
+      });
+
+      tableDiv.addEventListener("keydown", (ev) => {
+        if (ev.target.tagName === "TD") {
+          if (ev.key === "Escape") {
+            ev.target.textContent = savedValue;
+            ev.target.blur();
+          } else if (ev.key === "Enter") {
+            ev.preventDefault();
+            ev.target.blur();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -6,9 +6,21 @@ var attrbID = "";
 var oldData = "";
 var newData = "";
 
-const VALIDATTRB = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"];
-const NOTNULLATTRB = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"];
-const APIPATH = "/api/data/membership_tier";
+const VALIDATTRB = [
+  "promotion_id",
+  "promotion_name",
+  "promotion_banner",
+  "applicable_trip",
+  "promotion_status",
+];
+const NOTNULLATTRB = [
+  "promotion_id",
+  "promotion_name",
+  "promotion_banner",
+  "applicable_trip",
+  "promotion_status",
+];
+const APIPATH = "/api/data/promotion";
 
 const tableDiv = document.getElementById("table");
 const addButton = document.getElementById("addbutton");
@@ -47,16 +59,25 @@ const editableCellAttributes = (data, row, col) => {
 
 var grid = new gridjs.Grid({
   columns: [
-    { id: "tier_id", name: "ID" },
+    { id: "promotion_id", name: "ID" },
     {
-      id: "tier_discount",
-      name: "Discount",
+      id: "promotion_name",
+      name: "Promotion Name",
       attributes: editableCellAttributes,
     },
-    { id: "tier_fee", name: "Fee", attributes: editableCellAttributes },
     {
-      id: "tier_benefit",
-      name: "Benefits",
+      id: "promotion_banner",
+      name: "Banner",
+      attributes: editableCellAttributes,
+    },
+    {
+      id: "applicable_trip",
+      name: "Applicable Trip",
+      attributes: editableCellAttributes,
+    },
+    {
+      id: "promotion_status",
+      name: "Status",
       attributes: editableCellAttributes,
     },
     {
@@ -64,7 +85,7 @@ var grid = new gridjs.Grid({
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
         ),
     },
   ],
@@ -87,14 +108,11 @@ var grid = new gridjs.Grid({
     server: {
       url: (prev, columns) => {
         const columnIds = [
-          "customer_id",
-          "firstname",
-          "lastname",
-          "national_id",
-          "passport",
-          "date_of_birth",
-          "gender",
-          "email",
+          "promotion_id",
+          "promotion_name",
+          "promotion_banner",
+          "applicable_trip",
+          "promotion_status",
         ];
         const sort = columns.map(
           (col) => (col.direction === 1 ? "+" : "-") + columnIds[col.index]

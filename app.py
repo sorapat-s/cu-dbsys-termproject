@@ -21,6 +21,9 @@ trip_attrb = ["trip_id", "tour_program_id", "start_date", "end_date",
 
 tier_attrb = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"]
 
+promo_attrb = ["promotion_id", "promotion_name",
+               "promotion_banner", "applicable_trip", "promotion_status"]
+
 
 class Data(db.Model):
     __tablename__ = 'test'
@@ -231,6 +234,31 @@ class MembershipTier(db.Model):
         }
 
 
+class Promotion(db.Model):
+    __tablename__ = 'promotion'
+    promotion_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    promotion_name = db.Column(db.String(50), nullable=False)
+    promotion_banner = db.Column(db.Text, nullable=False)
+    applicable_trip = db.Column(db.ARRAY(db.Integer), nullable=False)
+    promotion_status = db.Column(db.Boolean, nullable=False)
+
+    def __init__(self, promotion_id, promotion_name, promotion_banner, applicable_trip, promotion_status):
+        self.promotion_id = promotion_id
+        self.promotion_name = promotion_name
+        self.promotion_banner = promotion_banner
+        self.applicable_trip = applicable_trip
+        self.promotion_status = promotion_status
+
+    def to_dict(self):
+        return {
+            'promotion_id': self.promotion_id,
+            'promotion_name': self.promotion_name,
+            'promotion_banner': self.promotion_banner,
+            'applicable_trip': str(self.applicable_trip).strip("[]"),
+            'promotion_status': str(self.promotion_status)
+        }
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -281,6 +309,11 @@ def trip():
 @app.route('/membership_tier')
 def tier():
     return render_template('tier.html')
+
+
+@app.route('/promotion')
+def promo():
+    return render_template('promotion.html')
 
 
 @app.route('/api/data')
@@ -830,6 +863,98 @@ def tier_update():
     db.session.commit()
     return {
         'data': [tp.to_dict() for tp in MembershipTier.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/promotion')
+def promo_data():
+    query = Promotion.query.order_by(Promotion.promotion_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            Promotion.promotion_id.cast(db.String).like(f'%{search}%'),
+            Promotion.promotion_name.like(f'%{search}%'),
+            Promotion.promotion_banner.like(f'%{search}%'),
+            Promotion.applicable_trip.cast(db.String).like(f'%{search}%'),
+            Promotion.promotion_status.cast(db.String).like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in promo_attrb:
+                name = 'promo_id'
+            col = getattr(Promotion, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = Promotion.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/promotion', methods=['POST'])
+def promo_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = Promotion.query.get(data['id'])
+    print("object", customer)
+    total = Promotion.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['promotion_id'] = total + 1
+        print("attempted to add", data)
+        if data["promotion_status"] in ["True", "true"]:
+            data["promotion_status"] = True
+        else:
+            data = False
+        data["applicable_trip"] = [int(s.strip())
+                                   for s in data["applicable_trip"].split(",")]
+        entry = Promotion(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.promotion_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in promo_attrb:
+            if field in data:
+                if field == "promotion_status":
+                    if data["promotion_status"] in ["True", "true"]:
+                        data["promotion_status"] = True
+                    else:
+                        data = False
+                if field == "applicable_trip":
+                    data["applicable_trip"] = [int(s.strip())
+                                               for s in data["applicable_trip"].split(",")]
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        Promotion.query.filter(
+            Promotion.promotion_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in Promotion.query],
         'total': total,
     }, 200
 

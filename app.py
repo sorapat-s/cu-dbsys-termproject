@@ -19,6 +19,8 @@ program_attrb = ["tour_program_id", "tour_program_name", "max_number_of_customer
 trip_attrb = ["trip_id", "tour_program_id", "start_date", "end_date",
               "number_of_customer", "reservation_start", "reservation_end", "price"]
 
+tier_attrb = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"]
+
 
 class Data(db.Model):
     __tablename__ = 'test'
@@ -207,6 +209,28 @@ class Trip(db.Model):
         }
 
 
+class MembershipTier(db.Model):
+    __tablename__ = 'membership_tier'
+    tier_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tier_discount = db.Column(db.Integer, nullable=False)
+    tier_fee = db.Column(db.Integer, nullable=False)
+    tier_benefit = db.Column(db.Text, nullable=False)
+
+    def __init__(self, tier_id, tier_discount, tier_fee, tier_benefit):
+        self.tier_id = tier_id
+        self.tier_discount = tier_discount
+        self.tier_fee = tier_fee
+        self.tier_benefit = tier_benefit
+
+    def to_dict(self):
+        return {
+            'tier_id': self.tier_id,
+            'tier_discount': self.tier_discount,
+            'tier_fee': self.tier_fee,
+            'tier_benefit': self.tier_benefit
+        }
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -252,6 +276,11 @@ def prog():
 @app.route('/trip')
 def trip():
     return render_template('trip.html')
+
+
+@app.route('/membership_tier')
+def tier():
+    return render_template('tier.html')
 
 
 @app.route('/api/data')
@@ -673,7 +702,7 @@ def trip_data():
             direction = s[0]
             name = s[1:]
             if name not in trip_attrb:
-                name = 'tour_program_id'
+                name = 'trip_id'
             col = getattr(Trip, name)
             if direction == '-':
                 col = col.desc()
@@ -724,6 +753,83 @@ def trip_update():
     db.session.commit()
     return {
         'data': [tp.to_dict() for tp in Trip.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/membership_tier')
+def tier_data():
+    query = MembershipTier.query.order_by(MembershipTier.tier_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            MembershipTier.tier_id.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_discount.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_fee.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_benefit.like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in tier_attrb:
+                name = 'tier_id'
+            col = getattr(MembershipTier, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = MembershipTier.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/membership_tier', methods=['POST'])
+def tier_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = MembershipTier.query.get(data['id'])
+    print("object", customer)
+    total = MembershipTier.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['tier_id'] = total + 1
+        print("attempted to add", data)
+        entry = MembershipTier(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.tier_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in tier_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        MembershipTier.query.filter(
+            MembershipTier.tier_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in MembershipTier.query],
         'total': total,
     }, 200
 

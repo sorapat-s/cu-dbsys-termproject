@@ -13,7 +13,7 @@ from io import BytesIO
 from flask import send_file
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:Ton23102546@localhost/termproject'
+app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:Ton23102546@localhost/postgres'
 db = SQLAlchemy(app)
 
 customer_attrb = ["customer_id", "firstname", "lastname", "national_id",

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Customer Table</title>
+    <link rel="stylesheet" href="../static/css/styles.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Customer Payment Method Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+
+      <div id="table"></div>
+      <dialog id="deletemodal" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button id="deleteclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button id="deleteconfirm" class="button">Delete</button>
+
+        <button id="deletecancel" class="button">Cancel</button>
+      </dialog>
+      <dialog id="editmodal" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button id="editclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button id="editconfirm" class="button">
+          Confirm
+        </button>
+
+        <button id="editcancel" class="button">Cancel</button>
+      </div>
+      <dialog id="addmodal" class="modal">
+        <header>
+          <h2>Add entry</h2>
+          <button id="addclose" clase="close">Close</button>
+        </header>
+
+        <form id="addform">
+            <input title="customer_id" placeholder="Customer ID" type="number" name="customer_id" required> </br>
+            <input title="card_number" placeholder="Card Number" type="text" name="card_number" required> </br>
+            <input title="security_code" placeholder="CCV" type="text" maxlength="3" minlength="3" name="security_code" required> </br>
+            <input title="12/34" placeholder="Expiry Date ex 12/34" type="text" name="expiry_date" required> </br>
+            <button id="addconfirm" type="submit"> Submit </button>
+        </form>
+      </dialog>
+      <button id="addbutton" class="addbutton">Add</button>
+    </dialog>
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script src="../static/js/payment.js"></script>
+  </body>
+</html>

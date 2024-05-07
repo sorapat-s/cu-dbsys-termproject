@@ -2,19 +2,35 @@ console.log("loaded script");
 
 var cell = null;
 var entryID = "";
-var entryID2 = "";
 var attrbID = "";
 var oldData = "";
 var newData = "";
 
-const VALIDATTRB = ["customer_id", "trip_id", "payment_status", "payment_due"];
-const NOTNULLATTRB = [
-  "customer_id",
-  "trip_id",
-  "payment_status",
-  "payment_due",
+const VALIDATTRB = [
+  "tour_program_id",
+  "tour_program_name",
+  "max_number_of_customer",
+  "destination_city",
+  "destination_country",
+  "duration",
+  "min_price",
+  "max_price",
+  "tour_detail",
+  "airline",
 ];
-const APIPATH = "/api/data/customer_trip";
+const NOTNULLATTRB = [
+  "tour_program_id",
+  "tour_program_name",
+  "max_number_of_customer",
+  "destination_city",
+  "destination_country",
+  "duration",
+  "min_price",
+  "max_price",
+  "tour_detail",
+  "airline",
+];
+const APIPATH = "/api/data/tour_program";
 
 const tableDiv = document.getElementById("table");
 const addButton = document.getElementById("addbutton");
@@ -43,9 +59,8 @@ const editableCellAttributes = (data, row, col) => {
   if (row) {
     return {
       contentEditable: "true",
-      data_element_id: row.cells[0].data,
-      customerID: row.cells[0].data,
-      tripID: row.cells[1].data,
+      "data-element-id": row.cells[0].data,
+      tourID: row.cells[0].data,
     };
   } else {
     return {};
@@ -54,24 +69,42 @@ const editableCellAttributes = (data, row, col) => {
 
 var grid = new gridjs.Grid({
   columns: [
-    { id: "customer_id", name: "Customer ID" },
-    { id: "trip_id", name: "Trip ID" },
+    { id: "tour_program_id" },
     {
-      id: "payment_status",
-      name: "Payment Status",
+      id: "tour_program_name",
+      name: "Name",
       attributes: editableCellAttributes,
     },
     {
-      id: "payment_due",
-      name: "Payment Due",
+      id: "max_number_of_customer",
+      name: "Max Customer",
       attributes: editableCellAttributes,
     },
+    {
+      id: "destination_city",
+      name: "Destination City",
+      attributes: editableCellAttributes,
+    },
+    {
+      id: "destination_country",
+      name: "Country",
+      attributes: editableCellAttributes,
+    },
+    { id: "duration", name: "Duration", attributes: editableCellAttributes },
+    { id: "min_price", name: "Min Price", attributes: editableCellAttributes },
+    { id: "max_price", name: "Max Price", attributes: editableCellAttributes },
+    {
+      id: "tour_detail",
+      name: "Tour Detail",
+      attributes: editableCellAttributes,
+    },
+    { id: "airline", name: "Airline", attributes: editableCellAttributes },
     {
       id: "actions",
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data}, ${row.cells[1].data})">Delete</button> <button>generate report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
         ),
     },
   ],
@@ -94,10 +127,16 @@ var grid = new gridjs.Grid({
     server: {
       url: (prev, columns) => {
         const columnIds = [
-          "customer_id",
-          "trip_id",
-          "payment_status",
-          "payment_due",
+          "tour_program_id",
+          "tour_program_name",
+          "max_number_of_customer",
+          "destination_city",
+          "destination_country",
+          "duration",
+          "min_price",
+          "max_price",
+          "tour_detail",
+          "airline",
         ];
         const sort = columns.map(
           (col) => (col.direction === 1 ? "+" : "-") + columnIds[col.index]
@@ -121,14 +160,9 @@ grid.render(tableDiv);
 function resetVar() {
   cell = null;
   entryID = "";
-  entryID2 = "";
   oldData = "";
   newData = "";
   attrbID = "";
-}
-
-function generateReport(customer_id,trip_id) {
-  window.location.href = `/custrip_rep/${customer_id}${trip_id}`;
 }
 
 function requestAdd(event) {
@@ -146,14 +180,11 @@ function requestAdd(event) {
 }
 
 function requestEdit() {
-  console.log("1a", entryID);
-  console.log("2a", entryID2);
   fetch(APIPATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: entryID,
-      id2: entryID2,
       type: "edit",
       [attrbID]: newData,
     }),
@@ -196,12 +227,10 @@ function requestDelete() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: entryID,
-      id2: entryID2,
       type: "delete",
     }),
   });
   deleteModal.close();
-  resetVar();
   grid.forceRender();
 }
 
@@ -210,12 +239,11 @@ function cancelDelete() {
   resetVar();
 }
 
-function triggerDelete(entryIDdelete, entryIDdelete2) {
+function triggerDelete(entryIDdelete) {
   if (entryIDdelete === "") {
     alert("Entry ID is null.");
   } else {
     entryID = entryIDdelete;
-    entryID2 = entryIDdelete2;
     deleteModal.showModal();
   }
 }
@@ -235,9 +263,7 @@ tableDiv.addEventListener("focusout", (ev) => {
       cell = ev.target;
       console.log(cell);
       console.log(ev.target.attributes.customerID);
-      console.log(ev.target.attributes.tripID);
-      entryID = ev.target.attributes.customerID.nodeValue;
-      entryID2 = ev.target.attributes.tripID.nodeValue;
+      entryID = ev.target.dataset.elementId;
       attrbID = ev.target.dataset.columnId;
       oldData = savedValue;
       newData = ev.target.textContent;

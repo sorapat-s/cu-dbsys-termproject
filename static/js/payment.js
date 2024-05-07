@@ -7,14 +7,19 @@ var attrbID = "";
 var oldData = "";
 var newData = "";
 
-const VALIDATTRB = ["customer_id", "trip_id", "payment_status", "payment_due"];
+const VALIDATTRB = [
+  "customer_id",
+  "card_number",
+  "security_code",
+  "expiry_date",
+];
 const NOTNULLATTRB = [
   "customer_id",
-  "trip_id",
-  "payment_status",
-  "payment_due",
+  "card_number",
+  "security_code",
+  "expiry_date",
 ];
-const APIPATH = "/api/data/customer_trip";
+const APIPATH = "/api/data/customer_payment_method";
 
 const tableDiv = document.getElementById("table");
 const addButton = document.getElementById("addbutton");
@@ -43,9 +48,9 @@ const editableCellAttributes = (data, row, col) => {
   if (row) {
     return {
       contentEditable: "true",
-      data_element_id: row.cells[0].data,
+      "data-element-id": row.cells[0].data,
       customerID: row.cells[0].data,
-      tripID: row.cells[1].data,
+      cardNumber: row.cells[1].data,
     };
   } else {
     return {};
@@ -54,16 +59,16 @@ const editableCellAttributes = (data, row, col) => {
 
 var grid = new gridjs.Grid({
   columns: [
-    { id: "customer_id", name: "Customer ID" },
-    { id: "trip_id", name: "Trip ID" },
+    { id: "customer_id" },
     {
-      id: "payment_status",
-      name: "Payment Status",
+      id: "card_number",
+      name: "Card Number",
       attributes: editableCellAttributes,
     },
+    { id: "security_code", name: "CCV", attributes: editableCellAttributes },
     {
-      id: "payment_due",
-      name: "Payment Due",
+      id: "expiry_date",
+      name: "Expiry Date",
       attributes: editableCellAttributes,
     },
     {
@@ -95,9 +100,9 @@ var grid = new gridjs.Grid({
       url: (prev, columns) => {
         const columnIds = [
           "customer_id",
-          "trip_id",
-          "payment_status",
-          "payment_due",
+          "card_number",
+          "security_code",
+          "expiry_date",
         ];
         const sort = columns.map(
           (col) => (col.direction === 1 ? "+" : "-") + columnIds[col.index]
@@ -127,10 +132,6 @@ function resetVar() {
   attrbID = "";
 }
 
-function generateReport(customer_id,trip_id) {
-  window.location.href = `/custrip_rep/${customer_id}${trip_id}`;
-}
-
 function requestAdd(event) {
   console.log("called request add");
   eventdata = new FormData(event.target);
@@ -146,8 +147,6 @@ function requestAdd(event) {
 }
 
 function requestEdit() {
-  console.log("1a", entryID);
-  console.log("2a", entryID2);
   fetch(APIPATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -191,6 +190,7 @@ function triggerEdit() {
 }
 
 function requestDelete() {
+  console.log(entryID2);
   fetch(APIPATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -201,8 +201,8 @@ function requestDelete() {
     }),
   });
   deleteModal.close();
-  resetVar();
   grid.forceRender();
+  resetVar();
 }
 
 function cancelDelete() {
@@ -216,6 +216,7 @@ function triggerDelete(entryIDdelete, entryIDdelete2) {
   } else {
     entryID = entryIDdelete;
     entryID2 = entryIDdelete2;
+    console.log(entryIDdelete2);
     deleteModal.showModal();
   }
 }
@@ -235,9 +236,8 @@ tableDiv.addEventListener("focusout", (ev) => {
       cell = ev.target;
       console.log(cell);
       console.log(ev.target.attributes.customerID);
-      console.log(ev.target.attributes.tripID);
       entryID = ev.target.attributes.customerID.nodeValue;
-      entryID2 = ev.target.attributes.tripID.nodeValue;
+      entryID2 = ev.target.attributes.cardNumber.nodeValue;
       attrbID = ev.target.dataset.columnId;
       oldData = savedValue;
       newData = ev.target.textContent;

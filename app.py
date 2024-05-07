@@ -20,6 +20,19 @@ customer_attrb = ["customer_id", "firstname", "lastname", "national_id",
                   "passport", "date_of_birth", "gender", "email", "password"]
 
 custtrip_attrb = ["customer_id", "trip_id", "payment_status", "payment_due"]
+payment_attrb = ["customer_id", "card_number", "security_code", "expiry_date"]
+program_attrb = [
+    "tour_program_id",
+    "tour_program_name",
+    "max_number_of_customer",
+    "destination_city",
+    "destination_country",
+    "duration",
+    "min_price",
+    "max_price",
+    "tour_detail",
+    "airline",
+]
 
 
 class Data(db.Model):
@@ -111,6 +124,66 @@ class CustomerTrip(db.Model):
             'payment_due': self.payment_due.strftime('%Y-%m-%d %H:%M:%S')
         }
 
+class CustomerPaymentMethod(db.Model):
+    __tablename__ = 'customer_payment_method'
+    customer_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    card_number = db.Column(db.String(30), primary_key=True)
+    security_code = db.Column(db.String(3), nullable=False)
+    expiry_date = db.Column(db.String(5), nullable=False)
+
+    def __init__(self, customer_id, card_number, security_code, expiry_date):
+        self.customer_id = customer_id
+        self.card_number = card_number
+        self.security_code = security_code
+        self.expiry_date = expiry_date
+
+    def to_dict(self):
+        return {
+            'customer_id': self.customer_id,
+            'card_number': self.card_number,
+            'security_code': self.security_code,
+            'expiry_date': self.expiry_date
+        }
+
+class TourProgram(db.Model):
+    __tablename__ = 'tour_program'
+    tour_program_id = db.Column(
+        db.Integer, primary_key=True, autoincrement=True)
+    tour_program_name = db.Column(db.String(50), nullable=False)
+    max_number_of_customer = db.Column(db.Integer, nullable=False)
+    destination_city = db.Column(db.String(50), nullable=False)
+    destination_country = db.Column(db.String(50), nullable=False)
+    duration = db.Column(db.String(50), nullable=False)
+    min_price = db.Column(db.Integer, nullable=False)
+    max_price = db.Column(db.Integer, nullable=False)
+    tour_detail = db.Column(db.Text, nullable=False)
+    airline = db.Column(db.String(50), nullable=False)
+
+    def __init__(self, tour_program_id, tour_program_name, max_number_of_customer, destination_city, destination_country, duration, min_price, max_price, tour_detail, airline):
+        self.tour_program_id = tour_program_id
+        self.tour_program_name = tour_program_name
+        self.max_number_of_customer = max_number_of_customer
+        self.destination_city = destination_city
+        self.destination_country = destination_country
+        self.duration = duration
+        self.min_price = min_price
+        self.max_price = max_price
+        self.tour_detail = tour_detail
+        self.airline = airline
+
+    def to_dict(self):
+        return {
+            'tour_program_id': self.tour_program_id,
+            'tour_program_name': self.tour_program_name,
+            'max_number_of_customer': self.max_number_of_customer,
+            'destination_city': self.destination_city,
+            'destination_country': self.destination_country,
+            'duration': self.duration,
+            'min_price': self.min_price,
+            'max_price': self.max_price,
+            'tour_detail': self.tour_detail,
+            'airline': self.airline
+        }
 
 @app.route("/")
 def index():
@@ -142,6 +215,15 @@ def cust():
 @app.route('/customer_trip')
 def custtrip():
     return render_template('custtrip.html')
+
+@app.route('/customer_payment_method')
+def pay():
+    return render_template('payment.html')
+
+
+@app.route('/tour_program')
+def prog():
+    return render_template('program.html')
 
 
 @app.route('/api/data')
@@ -370,6 +452,170 @@ def custtrip_update():
         'total': total,
     }, 200
 
+@app.route('/api/data/customer_payment_method')
+def payment_data():
+    query = CustomerPaymentMethod.query.order_by(
+        CustomerPaymentMethod.customer_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        print('search')
+        query = query.filter(db.or_(
+            CustomerPaymentMethod.customer_id.cast(
+                db.String).like(f'%{search}%'),
+            CustomerPaymentMethod.card_number.like(f'%{search}%'),
+            CustomerPaymentMethod.security_code.like(f'%{search}%'),
+            CustomerPaymentMethod.expiry_date.like(f'%{search}%')
+        ))
+    total = query.count()
+    print(total)
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in payment_attrb:
+                name = 'id'
+            col = getattr(CustomerPaymentMethod, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = CustomerPaymentMethod.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [ct.to_dict() for ct in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/customer_payment_method', methods=['POST'])
+def payment_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    total = CustomerPaymentMethod.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        print("attempted to add", data)
+        entry = CustomerPaymentMethod(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.customer_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        customer = CustomerPaymentMethod.query.get((data['id'], data['id2']))
+        print("editting")
+        for field in payment_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        print("deleted", data["id2"])
+        CustomerPaymentMethod.query.filter(CustomerPaymentMethod.customer_id == data["id"]).filter(
+            CustomerPaymentMethod.card_number == str(data['id2'])).delete()
+    db.session.commit()
+    return {
+        'data': [ct.to_dict() for ct in CustomerPaymentMethod.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/tour_program')
+def prog_data():
+    query = TourProgram.query.order_by(TourProgram.tour_program_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            TourProgram.tour_program_id.cast(db.String).like(f'%{search}%'),
+            TourProgram.tour_program_name.like(f'%{search}%'),
+            TourProgram.destination_city.like(f'%{search}%'),
+            TourProgram.destination_country.like(f'%{search}%'),
+            TourProgram.duration.like(f'%{search}%'),
+            TourProgram.max_number_of_customer.cast(
+                db.String).like(f'%{search}%'),
+            TourProgram.max_price.cast(db.String).like(f'%{search}%'),
+            TourProgram.min_price.cast(db.String).like(f'%{search}%'),
+            TourProgram.tour_detail.like(f'%{search}%'),
+            TourProgram.airline.like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in program_attrb:
+                name = 'tour_program_id'
+            col = getattr(TourProgram, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = TourProgram.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/tour_program', methods=['POST'])
+def prog_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = TourProgram.query.get(data['id'])
+    print("object", customer)
+    total = TourProgram.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['tour_program_id'] = total + 1
+        print("attempted to add", data)
+        entry = TourProgram(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.tour_program_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in program_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        TourProgram.query.filter(
+            TourProgram.tour_program_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in TourProgram.query],
+        'total': total,
+    }, 200
+
 
 @app.route('/cus_report')
 def report_user_all():
@@ -504,6 +750,8 @@ def cus_rep(customer_id):
         return send_file(buffer, as_attachment=True, download_name=f"{customer.firstname}_{customer.lastname}_Report.pdf")
     else:
         return "Customer not found.", 404
+    
+
     
 if __name__ == '__main__':
     app.debug = True

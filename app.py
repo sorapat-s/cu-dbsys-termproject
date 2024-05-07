@@ -3,9 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,Image
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import HexColor
+from reportlab.platypus import PageTemplate, BaseDocTemplate
 from io import BytesIO
 from flask import send_file
 
@@ -73,7 +75,6 @@ class Customer(db.Model):
         self.gender = gender
         self.email = email
         self.password = password
-        print("customer id ,jsdlkgldjgkdjflgjdlfgjdlkfgjldkfjglk", self.customer_id)
 
     def to_dict(self):
         return {
@@ -86,6 +87,193 @@ class Customer(db.Model):
             'gender': self.gender,
             'email': self.email,
             'password': self.password
+        }
+    
+class Trip(db.Model):
+    __tablename__ = 'trip'
+    trip_id = db.Column(db.Integer, primary_key=True, autoincrement='auto')
+    tour_program_id = db.Column(db.Integer, foreign_key = True)
+    start_date = db.Column(db.DateTime())
+    end_date = db.Column(db.DateTime())
+    number_of_customer = db.Column(db.Integer)
+    reservation_start = db.Column(db.DateTime())
+    reservation_end = db.Column(db.DateTime())
+    price = db.Column(db.Integer)
+
+    def __init__(self, trip_id, tour_program_id, start_date, end_date, number_of_customer, reservation_start, reservation_end, price):
+        self.trip_id = trip_id
+        self.tour_program_id = tour_program_id
+        self.start_date = datetime.strftime(start_date, '%Y-%m-%d')
+        self.end_date = datetime.strftime(end_date, '%Y-%m-%d')
+        self.number_of_customer = number_of_customer
+        self.reservation_start = datetime.strftime(reservation_start, '%Y-%m-%d')
+        self.reservation_end = datetime.strptime(reservation_end, '%Y-%m-%d')
+        self.price = price
+
+    def to_dict(self):
+        return {
+            'trip_id' : self.trip_id,
+            'tour_program_id' : self.tour_program_id,
+            'start_date' : self.start_date.strftime('%Y-%m-%d'),
+            'end_date' : self.end_date.strftime('%Y-%m-%d'),
+            'number_of_customer' : self.number_of_customer,
+            'reservation_start' : self.reservation_start.strftime('%Y-%m-%d'),
+            'reservation_end' : self.reservation_end.strftime('%Y-%m-%d'),
+            'price' : self.price
+        }    
+
+class CustomerPaymentMethod(db.Model):
+    __tablename__ = 'customer_payment_method'
+    customer_id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    card_number = db.Column(db.String(30), primary_key=True)
+    security_code = db.Column(db.String(3), nullable=False)
+    expiry_date = db.Column(db.String(5), nullable=False)
+
+    def __init__(self, customer_id, card_number, security_code, expiry_date):
+        self.customer_id = customer_id
+        self.card_number = card_number
+        self.security_code = security_code
+        self.expiry_date = expiry_date
+
+    def to_dict(self):
+        return {
+            'customer_id': self.customer_id,
+            'card_number': self.card_number,
+            'security_code': self.security_code,
+            'expiry_date': self.expiry_date
+        }
+
+class MembershipTier(db.Model):
+    __tablename__ = 'membership_tier'
+    tier_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tier_discount = db.Column(db.Integer, nullable=False)
+    tier_fee = db.Column(db.Integer, nullable=False)
+    tier_benefit = db.Column(db.Text, nullable=False)
+
+    def __init__(self, tier_discount, tier_fee, tier_benefit):
+        self.tier_discount = tier_discount
+        self.tier_fee = tier_fee
+        self.tier_benefit = tier_benefit
+
+    def to_dict(self):
+        return {
+            'tier_id': self.tier_id,
+            'tier_discount': self.tier_discount,
+            'tier_fee': self.tier_fee,
+            'tier_benefit': self.tier_benefit
+        }
+
+class Promotion(db.Model):
+    __tablename__ = 'promotion'
+    promotion_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    promotion_name = db.Column(db.String(50), nullable=False)
+    promotion_banner = db.Column(db.Text, nullable=False)
+    applicable_trip = db.Column(db.ARRAY(db.Integer), nullable=False)
+    promotion_status = db.Column(db.Boolean, nullable=False)
+
+    def __init__(self, promotion_name, promotion_banner, applicable_trip, promotion_status):
+        self.promotion_name = promotion_name
+        self.promotion_banner = promotion_banner
+        self.applicable_trip = applicable_trip
+        self.promotion_status = promotion_status
+
+    def to_dict(self):
+        return {
+            'promotion_id': self.promotion_id,
+            'promotion_name': self.promotion_name,
+            'promotion_banner': self.promotion_banner,
+            'applicable_trip': self.applicable_trip,
+            'promotion_status': self.promotion_status
+        }
+class CustomerTrip(db.Model):
+    __tablename__ = 'customer_trip'
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.customer_id'), primary_key=True)
+    trip_id = db.Column(db.Integer, db.ForeignKey('trip.trip_id'), primary_key=True)
+    payment_status = db.Column(db.Boolean, nullable=False)
+    payment_due = db.Column(db.DateTime, nullable=False)
+
+    def __init__(self, customer_id, trip_id, payment_status, payment_due):
+        self.customer_id = customer_id
+        self.trip_id = trip_id
+        self.payment_status = payment_status
+        self.payment_due = payment_due
+
+    def to_dict(self):
+        return {
+            'customer_id': self.customer_id,
+            'trip_id': self.trip_id,
+            'payment_status': self.payment_status,
+            'payment_due': self.payment_due.strftime('%Y-%m-%d %H:%M:%S')
+        }
+
+class TourProgram(db.Model):
+    __tablename__ = 'tour_program'
+    tour_program_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tour_program_name = db.Column(db.String(50), nullable=False)
+    max_number_of_customer = db.Column(db.Integer, nullable=False)
+    destination_city = db.Column(db.String(50), nullable=False)
+    destination_country = db.Column(db.String(50), nullable=False)
+    duration = db.Column(db.String(50), nullable=False)
+    min_price = db.Column(db.Integer, nullable=False)
+    max_price = db.Column(db.Integer, nullable=False)
+    tour_detail = db.Column(db.Text, nullable=False)
+    airline = db.Column(db.String(50), nullable=False)
+
+    def __init__(self, tour_program_name, max_number_of_customer, destination_city, destination_country, duration, min_price, max_price, tour_detail, airline):
+        self.tour_program_name = tour_program_name
+        self.max_number_of_customer = max_number_of_customer
+        self.destination_city = destination_city
+        self.destination_country = destination_country
+        self.duration = duration
+        self.min_price = min_price
+        self.max_price = max_price
+        self.tour_detail = tour_detail
+        self.airline = airline
+
+    def to_dict(self):
+        return {
+            'tour_program_id': self.tour_program_id,
+            'tour_program_name': self.tour_program_name,
+            'max_number_of_customer': self.max_number_of_customer,
+            'destination_city': self.destination_city,
+            'destination_country': self.destination_country,
+            'duration': self.duration,
+            'min_price': self.min_price,
+            'max_price': self.max_price,
+            'tour_detail': self.tour_detail,
+            'airline': self.airline
+        }
+    
+class Trip(db.Model):
+    __tablename__ = 'trip'
+    trip_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tour_program_id = db.Column(db.Integer, db.ForeignKey('tour_program.tour_program_id'), nullable=False)
+    start_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=False)
+    number_of_customer = db.Column(db.Integer, nullable=False)
+    reservation_start = db.Column(db.DateTime, nullable=False)
+    reservation_end = db.Column(db.DateTime, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+
+    def __init__(self, tour_program_id, start_date, end_date, number_of_customer, reservation_start, reservation_end, price):
+        self.tour_program_id = tour_program_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.number_of_customer = number_of_customer
+        self.reservation_start = reservation_start
+        self.reservation_end = reservation_end
+        self.price = price
+
+    def to_dict(self):
+        return {
+            'trip_id': self.trip_id,
+            'tour_program_id': self.tour_program_id,
+            'start_date': self.start_date.strftime('%Y-%m-%d'),
+            'end_date': self.end_date.strftime('%Y-%m-%d'),
+            'number_of_customer': self.number_of_customer,
+            'reservation_start': self.reservation_start.strftime('%Y-%m-%d'),
+            'reservation_end': self.reservation_end.strftime('%Y-%m-%d'),
+            'price': self.price
         }
 
 
@@ -323,7 +511,73 @@ def report_user_all():
     # Return PDF file to download
     return send_file(buffer, as_attachment=True,download_name="custumerreport")
 
+@app.route("/cus_rep/<int:customer_id>")
+def cus_rep(customer_id):
+    customer = Customer.query.get(customer_id)
+    
+    if customer:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add customer details to the PDF
+        title = Paragraph("Customer Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add customer information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Customer data
+        data = [
+            ["Name:", f"{customer.firstname} {customer.lastname}"],
+            ["Date of Birth:", customer.date_of_birth.strftime('%d %b %Y')],
+            ["National ID:", customer.national_id],
+            ["Passport:", customer.passport],
+            ["Gender:", customer.gender],
+            ["Email:", customer.email]
+        ]
+
+        # Create a table for customer data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"{customer.firstname}_{customer.lastname}_Report.pdf")
+    else:
+        return "Customer not found.", 404
+
+    
 if __name__ == '__main__':
     app.debug = True
     app.run()
-

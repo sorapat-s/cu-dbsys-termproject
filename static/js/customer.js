@@ -81,7 +81,7 @@ var grid = new gridjs.Grid({
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button type="button" onclick="generateReport(${row.cells[0].data})">Generate Report</button>`
         ),
     },
   ],
@@ -221,6 +221,9 @@ function triggerDelete(entryIDdelete) {
     entryID = entryIDdelete;
     deleteModal.showModal();
   }
+}
+function generateReport(customer_id) {
+  window.location.href = `/cus_rep/${customer_id}`;
 }
 
 let savedValue;

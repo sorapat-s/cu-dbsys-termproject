@@ -127,6 +127,9 @@
         console.log(curr_id);
         togglePopUp("delpopup");
       }
+      function generateReport(customer_id) {
+         window.location.href = `/cus_rep/${customer_id}`;
+      }
 
       function toggleEditPopup() {
         console.log("edit triggered");
@@ -173,8 +176,9 @@
             sort: false,
             formatter: (cell, row) =>
               gridjs.html(
-                `<button type="button" onclick="toggleDeletePopup(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+                `<button type="button" onclick="toggleDeletePopup(${row.cells[0].data})">Delete</button> <button type="button" onclick="generateReport(${row.cells[0].data})">Generate Report</button>`
               ),
+              
           },
         ],
         server: {

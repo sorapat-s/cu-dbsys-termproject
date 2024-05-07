@@ -187,8 +187,8 @@ class Promotion(db.Model):
         }
 class CustomerTrip(db.Model):
     __tablename__ = 'customer_trip'
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.customer_id'), primary_key=True)
-    trip_id = db.Column(db.Integer, db.ForeignKey('trip.trip_id'), primary_key=True)
+    customer_id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(db.Integer, primary_key=True)
     payment_status = db.Column(db.Boolean, nullable=False)
     payment_due = db.Column(db.DateTime, nullable=False)
 

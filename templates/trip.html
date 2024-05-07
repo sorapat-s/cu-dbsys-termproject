@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Trip Table</title>
+    <link rel="stylesheet" href="../static/css/styles.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Trip Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+
+      <div id="table"></div>
+      <dialog id="deletemodal" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button id="deleteclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button id="deleteconfirm" class="button">Delete</button>
+
+        <button id="deletecancel" class="button">Cancel</button>
+      </dialog>
+      <dialog id="editmodal" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button id="editclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button id="editconfirm" class="button">
+          Confirm
+        </button>
+
+        <button id="editcancel" class="button">Cancel</button>
+      </div>
+      <dialog id="addmodal" class="modal">
+        <header>
+          <h2>Add entry</h2>
+          <button id="addclose" clase="close">Close</button>
+        </header>
+
+        <form id="addform">
+            <input title="tour_program_id" placeholder="Tour Program ID" type="number" name="tour_program_id" required> </br>
+            <input title="start_date" placeholder="Start Date" type="date" name="start_date" required id="datepicker"> </br>
+            <input title="end_date" placeholder="End Date" type="date" name="end_date" required id="datepicker"> </br>
+            <input title="reservation_start" placeholder="Start Reservation" type="date" name="reservation_start" required id="datepicker"> </br>
+            <input title="reservation_end" placeholder="End Reservation" type="date" name="reservation_end" required id="datepicker"> </br>
+            <input title="price" placeholder="Price" type="number" name="price" required> </br>
+            <button id="addconfirm" type="submit"> Submit </button>
+        </form>
+      </dialog>
+      <button id="addbutton" class="addbutton">Add</button>
+    </dialog>
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script src="../static/js/trip.js"></script>
+  </body>
+</html>

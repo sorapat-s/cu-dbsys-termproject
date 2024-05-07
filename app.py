@@ -13,18 +13,11 @@ custtrip_attrb = ["customer_id", "trip_id", "payment_status", "payment_due"]
 
 payment_attrb = ["customer_id", "card_number", "security_code", "expiry_date"]
 
-program_attrb = [
-    "tour_program_id",
-    "tour_program_name",
-    "max_number_of_customer",
-    "destination_city",
-    "destination_country",
-    "duration",
-    "min_price",
-    "max_price",
-    "tour_detail",
-    "airline",
-]
+program_attrb = ["tour_program_id", "tour_program_name", "max_number_of_customer", "destination_city",
+                 "destination_country", "duration", "min_price", "max_price", "tour_detail", "airline"]
+
+trip_attrb = ["trip_id", "tour_program_id", "start_date", "end_date",
+              "number_of_customer", "reservation_start", "reservation_end", "price"]
 
 
 class Data(db.Model):
@@ -180,6 +173,40 @@ class TourProgram(db.Model):
         }
 
 
+class Trip(db.Model):
+    __tablename__ = 'trip'
+    trip_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tour_program_id = db.Column(db.Integer, nullable=False)
+    start_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=False)
+    number_of_customer = db.Column(db.Integer, nullable=False)
+    reservation_start = db.Column(db.DateTime, nullable=False)
+    reservation_end = db.Column(db.DateTime, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+
+    def __init__(self, trip_id, tour_program_id, start_date, end_date, number_of_customer, reservation_start, reservation_end, price):
+        self.trip_id = trip_id,
+        self.tour_program_id = tour_program_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.number_of_customer = number_of_customer
+        self.reservation_start = reservation_start
+        self.reservation_end = reservation_end
+        self.price = price
+
+    def to_dict(self):
+        return {
+            'trip_id': self.trip_id,
+            'tour_program_id': self.tour_program_id,
+            'start_date': self.start_date.strftime('%Y-%m-%d'),
+            'end_date': self.end_date.strftime('%Y-%m-%d'),
+            'number_of_customer': self.number_of_customer,
+            'reservation_start': self.reservation_start.strftime('%Y-%m-%d'),
+            'reservation_end': self.reservation_end.strftime('%Y-%m-%d'),
+            'price': self.price
+        }
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -220,6 +247,11 @@ def pay():
 @app.route('/tour_program')
 def prog():
     return render_template('program.html')
+
+
+@app.route('/trip')
+def trip():
+    return render_template('trip.html')
 
 
 @app.route('/api/data')
@@ -610,6 +642,88 @@ def prog_update():
     db.session.commit()
     return {
         'data': [tp.to_dict() for tp in TourProgram.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/trip')
+def trip_data():
+    query = Trip.query.order_by(Trip.trip_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            Trip.trip_id.cast(db.String).like(f'%{search}%'),
+            Trip.tour_program_id.cast(db.String).like(f'%{search}%'),
+            Trip.start_date.cast(db.String).like(f'%{search}%'),
+            Trip.end_date.cast(db.String).like(f'%{search}%'),
+            Trip.number_of_customer.cast(db.String).like(f'%{search}%'),
+            Trip.reservation_start.cast(db.String).like(f'%{search}%'),
+            Trip.reservation_end.cast(db.String).like(f'%{search}%'),
+            Trip.price.cast(db.String).like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in trip_attrb:
+                name = 'tour_program_id'
+            col = getattr(Trip, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = Trip.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/trip', methods=['POST'])
+def trip_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = Trip.query.get(data['id'])
+    print("object", customer)
+    total = Trip.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['trip_id'] = total + 1
+        data['number_of_customer'] = 0
+        print("attempted to add", data)
+        entry = Trip(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.trip_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in trip_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        Trip.query.filter(
+            Trip.trip_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in Trip.query],
         'total': total,
     }, 200
 

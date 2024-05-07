@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:p0stBLANC@localhost/termproject'
+app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:Ton23102546@localhost/termproject'
 db = SQLAlchemy(app)
 
 customer_attrb = ["customer_id", "firstname", "lastname", "national_id",

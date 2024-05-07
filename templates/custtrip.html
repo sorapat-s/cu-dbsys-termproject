@@ -12,7 +12,7 @@
   </head>
   <body>
     <div>
-      <h1>Customer Table</h1>
+      <h1>Customer Trip Table</h1>
       <button class="tablebutton">Table 1</button>
       <button class="tablebutton">Table 2</button>
       <button class="tablebutton">Table 3</button>
@@ -58,24 +58,20 @@
         </header>
 
         <form id="addform">
-            <input title="firstname" placeholder="Firstname ex. Kronii" type="text" name="firstname" required> </br>
-            <input title="lastname" placeholder="Lastname ex. Ouro" type="text" name="lastname" required> </br>
-            <input title="13 digit number" placeholder="National ID ex. 1234567890123" type="text" pattern="[0-9]{13}" name="national_id" required> </br>
-            <input title="A123456 AA123456 AA1234567" placeholder="Passport Number ex. AB123456" type="text" pattern="[A-Z]{1,2}[0-9]{6}|[A-Z]{2}[0-9]{7}" name="passport" required> </br>
-            <input title="date_of_birth" placeholder="Date of Birth" type="date" name="date_of_birth" required id="datepicker"> </br>
-            <select title="gender" name="gender" id="genderselect">
-                <option value="">--Please choose your gender--</option>
-                <option value="M">Male</option>
-                <option value="F">Female</option>
+            <input title="customer_id" placeholder="Customer ID" type="number" name="customer_id" required> </br>
+            <input title="trip_id" placeholder="Trip ID" type="number" name="trip_id" required> </br>
+            <select title="payment_status" name="payment_status" id="paymentchoose">
+                <option value="">--Please choose payment status--</option>
+                <option value="true">Unpaid</option>
+                <option value="false">Paid</option>
               </select>  </br>
-            <input title="email" placeholder="Email ex. name@mail.com" type="email" name="email" required> </br>
-            <input title="max length 20" placeholder="Password ex. AK$ef15s-oLS" type="password" name="password" maxlength="20" required> </br>
+            <input title="payment_due" placeholder="Payment Due" type="date" name="payment_due" required id="datepicker"> </br>
             <button id="addconfirm" type="submit"> Submit </button>
         </form>
       </dialog>
       <button id="addbutton" class="addbutton">Add</button>
     </dialog>
     <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
-    <script src="../static/js/customer.js"></script>
+    <script src="../static/js/custtrip.js"></script>
   </body>
 </html>

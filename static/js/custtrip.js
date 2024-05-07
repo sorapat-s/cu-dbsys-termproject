@@ -2,33 +2,19 @@ console.log("loaded script");
 
 var cell = null;
 var entryID = "";
+var entryID2 = "";
 var attrbID = "";
 var oldData = "";
 var newData = "";
 
-const VALIDATTRB = [
-  "customer_id",
-  "firstname",
-  "lastname",
-  "national_id",
-  "passport",
-  "date_of_birth",
-  "gender",
-  "email",
-  "password",
-];
+const VALIDATTRB = ["customer_id", "trip_id", "payment_status", "payment_due"];
 const NOTNULLATTRB = [
   "customer_id",
-  "firstname",
-  "lastname",
-  "national_id",
-  "passport",
-  "date_of_birth",
-  "gender",
-  "email",
-  "password",
+  "trip_id",
+  "payment_status",
+  "payment_due",
 ];
-const APIPATH = "/api/data/customer";
+const APIPATH = "/api/data/customer_trip";
 
 const tableDiv = document.getElementById("table");
 const addButton = document.getElementById("addbutton");
@@ -57,8 +43,9 @@ const editableCellAttributes = (data, row, col) => {
   if (row) {
     return {
       contentEditable: "true",
-      "data-element-id": row.cells[0].data,
+      data_element_id: row.cells[0].data,
       customerID: row.cells[0].data,
+      tripID: row.cells[1].data,
     };
   } else {
     return {};
@@ -67,25 +54,24 @@ const editableCellAttributes = (data, row, col) => {
 
 var grid = new gridjs.Grid({
   columns: [
-    { id: "customer_id" },
-    { id: "firstname", name: "Firstname", attributes: editableCellAttributes },
-    { id: "lastname", name: "Lastname", attributes: editableCellAttributes },
+    { id: "customer_id", name: "Customer ID" },
+    { id: "trip_id", name: "Trip ID" },
     {
-      id: "national_id",
-      name: "National ID",
+      id: "payment_status",
+      name: "Payment Status",
       attributes: editableCellAttributes,
     },
-    { id: "passport", name: "Passport", attributes: editableCellAttributes },
-    { id: "date_of_birth", name: "DOB", attributes: editableCellAttributes },
-    { id: "gender", name: "Gender", attributes: editableCellAttributes },
-    { id: "email", name: "Email", attributes: editableCellAttributes },
-    { id: "password", hidden: true, sort: false },
+    {
+      id: "payment_due",
+      name: "Payment Due",
+      attributes: editableCellAttributes,
+    },
     {
       id: "actions",
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data}, ${row.cells[1].data})">Delete</button> <button>generate report</button>`
         ),
     },
   ],
@@ -109,13 +95,9 @@ var grid = new gridjs.Grid({
       url: (prev, columns) => {
         const columnIds = [
           "customer_id",
-          "firstname",
-          "lastname",
-          "national_id",
-          "passport",
-          "date_of_birth",
-          "gender",
-          "email",
+          "trip_id",
+          "payment_status",
+          "payment_due",
         ];
         const sort = columns.map(
           (col) => (col.direction === 1 ? "+" : "-") + columnIds[col.index]
@@ -139,6 +121,7 @@ grid.render(tableDiv);
 function resetVar() {
   cell = null;
   entryID = "";
+  entryID2 = "";
   oldData = "";
   newData = "";
   attrbID = "";
@@ -159,11 +142,14 @@ function requestAdd(event) {
 }
 
 function requestEdit() {
+  console.log("1a", entryID);
+  console.log("2a", entryID2);
   fetch(APIPATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: entryID,
+      id2: entryID2,
       type: "edit",
       [attrbID]: newData,
     }),
@@ -206,10 +192,12 @@ function requestDelete() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: entryID,
+      id2: entryID2,
       type: "delete",
     }),
   });
   deleteModal.close();
+  resetVar();
   grid.forceRender();
 }
 
@@ -218,11 +206,12 @@ function cancelDelete() {
   resetVar();
 }
 
-function triggerDelete(entryIDdelete) {
+function triggerDelete(entryIDdelete, entryIDdelete2) {
   if (entryIDdelete === "") {
     alert("Entry ID is null.");
   } else {
     entryID = entryIDdelete;
+    entryID2 = entryIDdelete2;
     deleteModal.showModal();
   }
 }
@@ -242,7 +231,9 @@ tableDiv.addEventListener("focusout", (ev) => {
       cell = ev.target;
       console.log(cell);
       console.log(ev.target.attributes.customerID);
-      entryID = ev.target.dataset.elementId;
+      console.log(ev.target.attributes.tripID);
+      entryID = ev.target.attributes.customerID.nodeValue;
+      entryID2 = ev.target.attributes.tripID.nodeValue;
       attrbID = ev.target.dataset.columnId;
       oldData = savedValue;
       newData = ev.target.textContent;
@@ -267,9 +258,6 @@ tableDiv.addEventListener("keydown", (ev) => {
 
 addButton.addEventListener("click", (ev) => {
   addModal.showModal();
-  document.getElementById("datepicker").max = new Date()
-    .toISOString()
-    .split("T")[0];
 });
 
 addForm.addEventListener("submit", (ev) => {

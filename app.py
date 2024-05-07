@@ -1,16 +1,17 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,Image
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,Image,PageTemplate, BaseDocTemplate
+from reportlab.lib.units import cm,inch
+from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.colors import HexColor
-from reportlab.platypus import PageTemplate, BaseDocTemplate
+from models import Tour, TourSchedule
+from reportlab.lib.enums import TA_CENTER
 from io import BytesIO
-from flask import send_file
+
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:Ton23102546@localhost/postgres'
@@ -751,7 +752,156 @@ def cus_rep(customer_id):
     else:
         return "Customer not found.", 404
     
+@app.route("/payment_rep/<int:customer_id>")
+def payment_rep(customer_id):
+    payments = CustomerPaymentMethod.query.filter_by(customer_id=customer_id).all()
+    customer = Customer.query.get(customer_id)
+    
+    if customer:
+        buffer = BytesIO()
 
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add customer details to the PDF
+        title = Paragraph("Payment Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add customer information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Customer data
+        data = [
+            ["Customer ID:", customer.customer_id],
+            ["Name:", f"{customer.firstname} {customer.lastname}"],
+            ["Email:", customer.email],
+        ]
+
+        # Create a table for customer data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Add payment information
+        elements.append(Spacer(1, 20))  # Add space
+        elements.append(Paragraph("Payment Information", getSampleStyleSheet()['Heading2']))
+
+        # Payment data
+        payment_data = [
+            ["Card Number", "Security Code", "Expiry Date"]
+        ]
+        for payment in payments:
+            payment_data.append([
+                payment.card_number,
+                payment.security_code,
+                payment.expiry_date
+            ])
+
+        # Create a table for payment data
+        payment_table = Table(payment_data, colWidths=[120, 80, 80])
+
+        # Style the table
+        payment_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        payment_table.setStyle(payment_style)
+
+        elements.append(payment_table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"{customer.firstname}_{customer.lastname}_Payment_Report.pdf")
+    else:
+        return "Customer not found.", 404
+
+@app.route("tourpro_report/<int:tour_id>")
+def tour_program_report(tour_id):
+    # Fetch tour details
+    tour = Tour.query.get(tour_id)
+
+    if tour:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Define styles
+        styles = getSampleStyleSheet()
+        center_style = ParagraphStyle(name='Center', alignment=TA_CENTER)
+        
+        # Create content for the PDF
+        content = []
+
+        # Title
+        title = Paragraph("Tour Program Report", styles['Title'])
+        content.append(title)
+        content.append(Spacer(1, 12))
+
+        # Tour information
+        tour_info = Paragraph(f"<b>Tour ID:</b> {tour.id}<br/><b>Name:</b> {tour.name}<br/><b>Description:</b> {tour.description}", styles['BodyText'])
+        content.append(tour_info)
+        content.append(Spacer(1, 12))
+
+        # Tour schedule
+        schedule_title = Paragraph("<b>Tour Schedule:</b>", styles['Heading2'])
+        content.append(schedule_title)
+        content.append(Spacer(1, 6))
+
+        # Fetch tour schedules
+        schedules = TourSchedule.query.filter_by(tour_id=tour_id).all()
+        if schedules:
+            for schedule in schedules:
+                schedule_info = Paragraph(f"<b>Date:</b> {schedule.date.strftime('%Y-%m-%d')}<br/><b>Time:</b> {schedule.time}<br/><b>Location:</b> {schedule.location}", styles['BodyText'])
+                content.append(schedule_info)
+                content.append(Spacer(1, 6))
+        else:
+            content.append(Paragraph("No schedule available for this tour.", styles['BodyText']))
+
+        # Build the PDF
+        doc.build(content)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"Tour_Program_Report_{tour_id}.pdf")
+    else:
+        return "Tour not found.", 404
     
 if __name__ == '__main__':
     app.debug = True

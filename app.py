@@ -1,5 +1,15 @@
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
+from flask import send_file
+
+
 from datetime import datetime
 
 app = Flask(__name__)
@@ -245,7 +255,75 @@ def cust_update():
         'total': total,
     }, 200
 
+@app.route('/cus_report')
+def report_user_all():
+    # Query data from the database
+    customers = Customer.query.all()
+    # Create a BytesIO buffer to store the PDF
+    buffer = BytesIO()
+
+    # Create a PDF document
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+
+    title = Paragraph("Customer Report", getSampleStyleSheet()['Title'])
+    
+    elements.append(title)
+
+
+    # Add data to the PDF
+    data = [
+        ["Customer ID", "Firstname", "Lastname", "National ID", "Passport", "Date of Birth", "Gender", "Email", "Password"]
+    ]
+    for customer in customers:
+        data.append([
+            customer.customer_id,
+            customer.firstname,
+            customer.lastname,
+            customer.national_id,
+            customer.passport,
+            customer.date_of_birth.strftime("%d %b %Y"),
+            customer.gender,
+            customer.email,
+            customer.password
+        ])
+
+   # Calculate column widths to fit the A4 page
+    num_cols = len(data[0])
+    col_widths = [A4[0] / num_cols] * num_cols
+    
+    # Create a table and style
+    table = Table(data, repeatRows=1)
+    style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('FONTSIZE', (0, 0), (-1, -1), 5.5)])  # กำหนดขนาดตัวอักษรเป็น auto'
+    
+    
+    table.setStyle(style)
+    
+    col_widths = [1.5 * cm, 2 * cm, 2 * cm, 2 * cm, 1 * cm, 2 * cm, 0.9 * cm, 5 * cm, 2 * cm]  # ปรับขนาดความกว้างของแต่ละคอลัมน์
+    table._argW = col_widths
+    table.allow_auto_fit = True
+
+    # Add table to the PDF
+    elements.append(table)
+
+
+    # Build the PDF
+    doc.build(elements)
+
+    # Reset buffer position
+    buffer.seek(0)
+
+    # Return PDF file to download
+    return send_file(buffer, as_attachment=True,download_name="custumerreport")
 
 if __name__ == '__main__':
     app.debug = True
     app.run()
+

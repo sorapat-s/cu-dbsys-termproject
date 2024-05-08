@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Tour Program Table</title>
+    <title>Membership Tier Table</title>
     <link rel="stylesheet" href="../static/css/styles.css" />
     <link rel="icon" type="image/png" href="../static/favicon.png" />
     <style>
@@ -12,7 +12,7 @@
   </head>
   <body>
     <div>
-      <h1>Tour Program Table</h1>
+      <h1>Membership Tier Table</h1>
       <button class="tablebutton">Table 1</button>
       <button class="tablebutton">Table 2</button>
       <button class="tablebutton">Table 3</button>
@@ -58,21 +58,21 @@
         </header>
 
         <form id="addform">
-            <input title="tour_program_name" placeholder="Tour Program Name" type="text" name="tour_program_name" required> </br>
-            <input title="max_number_of_customer" placeholder="Max Number of Customer" type="number" name="max_number_of_customer" required> </br>
-            <input title="destination_city" placeholder="City" type="text" name="destination_city" required> </br>
-            <input title="destination_country" placeholder="Country" type="text" name="destination_country" required> </br>
-            <input title="N days N-1 nights" placeholder="Duration" type="text" name="duration"> </br>
-            <input title="min_price" placeholder="Minimum Price" type="number" name="min_price" required> </br>
-            <input title="max_price" placeholder="Maximum Price" type="number" name="max_price" required> </br>
-            <input title="tour_detail" placeholder="Tour Detail" type="text" name="tour_detail" required> </br>
-            <input title="airline" placeholder="Airline" type="text" name="airline" required> </br>
+            <input title="customer_id" placeholder="Customer ID" type="number" name="customer_id" required> </br>
+            <input title="tier_id" placeholder="Tier ID" type="number" name="tier_id" required> </br>
+            <select title="membership_payment_status" name="membership_payment_status" id="paychoose">
+                <option value="">--Please choose payment status--</option>
+                <option value="true">Paid</option>
+                <option value="false">Unpaid</option>
+            </select> </br>
+            <input title="previous_payment_date" type="date" name="previous_payment_date" required> </br>
+            <input title="next_payment_date" type="date" name="next_payment_date" required> </br>
             <button id="addconfirm" type="submit"> Submit </button>
         </form>
       </dialog>
       <button id="addbutton" class="addbutton">Add</button>
     </div>
     <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
-    <script src="../static/js/program.js"></script>
+    <script src="../static/js/member.js"></script>
   </body>
 </html>

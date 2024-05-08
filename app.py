@@ -24,6 +24,9 @@ tier_attrb = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"]
 promo_attrb = ["promotion_id", "promotion_name",
                "promotion_banner", "applicable_trip", "promotion_status"]
 
+mem_attrb = ["customer_id", "tier_id", "membership_payment_status",
+             "previous_payment_date", "next_payment_date"]
+
 
 class Data(db.Model):
     __tablename__ = 'test'
@@ -259,6 +262,31 @@ class Promotion(db.Model):
         }
 
 
+class Membership(db.Model):
+    __tablename__ = 'membership'
+    customer_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tier_id = db.Column(db.Integer, nullable=False)
+    membership_payment_status = db.Column(db.Integer, nullable=False)
+    previous_payment_date = db.Column(db.DateTime, nullable=False)
+    next_payment_date = db.Column(db.DateTime, nullable=False)
+
+    def __init__(self, customer_id, tier_id, membership_payment_status, previous_payment_date, next_payment_date):
+        self.customer_id = customer_id
+        self.tier_id = tier_id
+        self.membership_payment_status = membership_payment_status
+        self.previous_payment_date = previous_payment_date
+        self.next_payment_date = next_payment_date
+
+    def to_dict(self):
+        return {
+            'customer_id': self.customer_id,
+            'tier_id': self.tier_id,
+            'membership_payment_status': str(self.membership_payment_status),
+            'previous_payment_date': self.previous_payment_date.strftime('%Y-%m-%d'),
+            'next_payment_date': self.next_payment_date.strftime('%Y-%m-%d')
+        }
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -314,6 +342,11 @@ def tier():
 @app.route('/promotion')
 def promo():
     return render_template('promotion.html')
+
+
+@app.route('/membership')
+def member():
+    return render_template('member.html')
 
 
 @app.route('/api/data')
@@ -929,7 +962,7 @@ def promo_update():
         if data["promotion_status"] in ["True", "true"]:
             data["promotion_status"] = True
         else:
-            data = False
+            data["promotion_status"] = False
         data["applicable_trip"] = [int(s.strip())
                                    for s in data["applicable_trip"].split(",")]
         entry = Promotion(**data)
@@ -943,7 +976,7 @@ def promo_update():
                     if data["promotion_status"] in ["True", "true"]:
                         data["promotion_status"] = True
                     else:
-                        data = False
+                        data["promotion_status"] = False
                 if field == "applicable_trip":
                     data["applicable_trip"] = [int(s.strip())
                                                for s in data["applicable_trip"].split(",")]
@@ -955,6 +988,94 @@ def promo_update():
     db.session.commit()
     return {
         'data': [tp.to_dict() for tp in Promotion.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/membership')
+def member_data():
+    query = Membership.query.order_by(Membership.customer_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            Membership.customer_id.cast(db.String).like(f'%{search}%'),
+            Membership.tier_id.cast(db.String).like(f'%{search}%'),
+            Membership.membership_payment_status.cast(
+                db.String).like(f'%{search}%'),
+            Membership.previous_payment_date.cast(
+                db.String).like(f'%{search}%'),
+            Membership.next_payment_date.cast(db.String).like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in mem_attrb:
+                name = 'customer_id'
+            col = getattr(Membership, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = Membership.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/membership', methods=['POST'])
+def member_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = Membership.query.get(data['id'])
+    print("object", customer)
+    total = Membership.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        print("attempted to add", data)
+        if data["membership_payment_status"] in ["True", "true"]:
+            data["membership_payment_status"] = True
+        else:
+            data["membership_payment_status"] = False
+        entry = Membership(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.customer_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in mem_attrb:
+            if field in data:
+                if field == "membership_payment_status":
+                    if data["membership_payment_status"] in ["True", "true"]:
+                        data["membership_payment_status"] = True
+                    else:
+                        data["membership_payment_status"] = False
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        Membership.query.filter(
+            Membership.customer_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in Membership.query],
         'total': total,
     }, 200
 

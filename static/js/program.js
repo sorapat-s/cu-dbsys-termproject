@@ -104,7 +104,7 @@ var grid = new gridjs.Grid({
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button>`
         ),
     },
   ],

@@ -1,6 +1,17 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageTemplate, BaseDocTemplate
+from reportlab.lib.units import cm, inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib import pdfencrypt
+
+from io import BytesIO
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://postgres:p0stBLANC@localhost/termproject'
@@ -1078,6 +1089,386 @@ def member_update():
         'data': [tp.to_dict() for tp in Membership.query],
         'total': total,
     }, 200
+
+
+@app.route('/cus_report')
+def report_user_all():
+    # Query data from the database
+    customers = Customer.query.all()
+    # Create a BytesIO buffer to store the PDF
+    buffer = BytesIO()
+
+    # Create a PDF document
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+
+    title = Paragraph("Customer Report", getSampleStyleSheet()['Title'])
+
+    elements.append(title)
+
+    # Add data to the PDF
+    data = [
+        ["Customer ID", "Firstname", "Lastname", "National ID",
+            "Passport", "Date of Birth", "Gender", "Email", "Password"]
+    ]
+    for customer in customers:
+        data.append([
+            customer.customer_id,
+            customer.firstname,
+            customer.lastname,
+            customer.national_id,
+            customer.passport,
+            customer.date_of_birth.strftime("%d %b %Y"),
+            customer.gender,
+            customer.email,
+            customer.password
+        ])
+
+   # Calculate column widths to fit the A4 page
+    num_cols = len(data[0])
+    col_widths = [A4[0] / num_cols] * num_cols
+
+    # Create a table and style
+    table = Table(data, repeatRows=1)
+    style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        # กำหนดขนาดตัวอักษรเป็น auto'
+                        ('FONTSIZE', (0, 0), (-1, -1), 5.5)])
+
+    table.setStyle(style)
+
+    col_widths = [1.5 * cm, 2 * cm, 2 * cm, 2 * cm, 1 * cm, 2 * cm,
+                  0.9 * cm, 5 * cm, 2 * cm]  # ปรับขนาดความกว้างของแต่ละคอลัมน์
+    table._argW = col_widths
+    table.allow_auto_fit = True
+
+    # Add table to the PDF
+    elements.append(table)
+
+    # Build the PDF
+    doc.build(elements)
+
+    # Reset buffer position
+    buffer.seek(0)
+
+    # Return PDF file to download
+    return send_file(buffer, as_attachment=True, download_name="custumerreport.pdf")
+
+
+@app.route("/cus_rep/<int:customer_id>")
+def cus_rep(customer_id):
+    customer = Customer.query.get(customer_id)
+
+    if customer:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add customer details to the PDF
+        title = Paragraph("Customer Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add customer information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Customer data
+        data = [
+            ["Name:", f"{customer.firstname} {customer.lastname}"],
+            ["Date of Birth:", customer.date_of_birth.strftime('%d %b %Y')],
+            ["National ID:", customer.national_id],
+            ["Passport:", customer.passport],
+            ["Gender:", customer.gender],
+            ["Email:", customer.email]
+        ]
+
+        # Create a table for customer data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"{customer.firstname}_{customer.lastname}_Report.pdf")
+    else:
+        return "Customer not found.", 404
+
+
+@app.route("/payment_rep/<int:customer_id>")
+def payment_rep(customer_id):
+    payments = CustomerPaymentMethod.query.filter_by(
+        customer_id=customer_id).all()
+    customer = Customer.query.get(customer_id)
+
+    if customer:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add customer details to the PDF
+        title = Paragraph("Payment Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add customer information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Customer data
+        data = [
+            ["Customer ID:", customer.customer_id],
+            ["Name:", f"{customer.firstname} {customer.lastname}"],
+            ["Email:", customer.email],
+        ]
+
+        # Create a table for customer data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Add payment information
+        elements.append(Spacer(1, 20))  # Add space
+        elements.append(Paragraph("Payment Information",
+                        getSampleStyleSheet()['Heading2']))
+
+        # Payment data
+        payment_data = [
+            ["Card Number", "Security Code", "Expiry Date"]
+        ]
+        for payment in payments:
+            payment_data.append([
+                payment.card_number,
+                payment.security_code,
+                payment.expiry_date
+            ])
+
+        # Create a table for payment data
+        payment_table = Table(payment_data, colWidths=[120, 80, 80])
+
+        # Style the table
+        payment_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        payment_table.setStyle(payment_style)
+
+        elements.append(payment_table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"{customer.firstname}_{customer.lastname}_Payment_Report.pdf")
+    else:
+        return "Customer not found.", 404
+
+
+@app.route("/cus_trip_report/<int:customer_id>/<int:trip_id>")
+def cus_trip_rep(customer_id, trip_id):
+    customer_trip = CustomerTrip.query.filter_by(
+        customer_id=customer_id, trip_id=trip_id).first()
+    trip = Trip.query.get(trip_id)
+
+    if customer_trip and trip:
+        customer = Customer.query.get(customer_trip.customer_id)
+        buffer = BytesIO()
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add trip details to the PDF
+        title = Paragraph("Trip Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add trip information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Trip data
+        data = [
+
+            ["Trip ID:", trip.trip_id],
+            ["Tour Program ID:", trip.tour_program_id],
+            ["Start Date:", trip.start_date.strftime('%d %b %Y')],
+            ["End Date:", trip.end_date.strftime('%d %b %Y')],
+            ["Number of Customers:", trip.number_of_customer],
+            ["Reservation Start:",
+                trip.reservation_start.strftime('%d %b %Y')],
+            ["Reservation End:", trip.reservation_end.strftime('%d %b %Y')],
+            ["Price:", trip.price]
+        ]
+
+        # Create a table for trip data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"Trip_Report_{trip_id}.pdf")
+    else:
+        return "Customer trip or trip not found.", 404
+
+
+@app.route("/trip_report/<int:trip_id>")
+def trip_report(trip_id):
+    # Query the trip from the database
+    trip = Trip.query.get(trip_id)
+
+    if trip:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add trip details to the PDF
+        title = Paragraph("Trip Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add trip information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Trip data
+        data = [
+            ["Trip ID:", trip.trip_id],
+            ["Tour Program ID:", trip.tour_program_id],
+            ["Start Date:", trip.start_date.strftime('%d %b %Y')],
+            ["End Date:", trip.end_date.strftime('%d %b %Y')],
+            ["Number of Customers:", trip.number_of_customer],
+            ["Reservation Start:",
+                trip.reservation_start.strftime('%d %b %Y')],
+            ["Reservation End:", trip.reservation_end.strftime('%d %b %Y')],
+            ["Price:", trip.price]
+        ]
+
+        # Create a table for trip data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"Trip_Report_{trip_id}.pdf")
+    else:
+        return "Trip not found.", 404
 
 
 if __name__ == '__main__':

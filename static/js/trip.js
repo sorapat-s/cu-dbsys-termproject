@@ -102,7 +102,7 @@ var grid = new gridjs.Grid({
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button>generate report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button type="button" onclick="generateReport(${row.cells[0].data})">Generate Report</button>`
         ),
     },
   ],
@@ -159,6 +159,10 @@ function resetVar() {
   oldData = "";
   newData = "";
   attrbID = "";
+}
+
+function generateReport(trip_id) {
+  window.location.href = `/trip_report/${trip_id}`;
 }
 
 function requestAdd(event) {

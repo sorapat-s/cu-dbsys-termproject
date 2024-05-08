@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -8,8 +8,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.units import cm,inch
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.colors import HexColor
-from models import Tour, TourSchedule
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib import pdfencrypt
+
 from io import BytesIO
 
 
@@ -34,6 +35,10 @@ program_attrb = [
     "tour_detail",
     "airline",
 ]
+trip_attrb = ["trip_id", "tour_program_id", "start_date", "end_date",
+              "number_of_customer", "reservation_start", "reservation_end", "price"]
+
+tier_attrb = ["tier_id", "tier_discount", "tier_fee", "tier_benefit"]
 
 
 class Data(db.Model):
@@ -185,6 +190,62 @@ class TourProgram(db.Model):
             'tour_detail': self.tour_detail,
             'airline': self.airline
         }
+    
+class Trip(db.Model):
+    __tablename__ = 'trip'
+    trip_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tour_program_id = db.Column(db.Integer, nullable=False)
+    start_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=False)
+    number_of_customer = db.Column(db.Integer, nullable=False)
+    reservation_start = db.Column(db.DateTime, nullable=False)
+    reservation_end = db.Column(db.DateTime, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+
+    def __init__(self, trip_id, tour_program_id, start_date, end_date, number_of_customer, reservation_start, reservation_end, price):
+        self.trip_id = trip_id,
+        self.tour_program_id = tour_program_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.number_of_customer = number_of_customer
+        self.reservation_start = reservation_start
+        self.reservation_end = reservation_end
+        self.price = price
+
+    def to_dict(self):
+        return {
+            'trip_id': self.trip_id,
+            'tour_program_id': self.tour_program_id,
+            'start_date': self.start_date.strftime('%Y-%m-%d'),
+            'end_date': self.end_date.strftime('%Y-%m-%d'),
+            'number_of_customer': self.number_of_customer,
+            'reservation_start': self.reservation_start.strftime('%Y-%m-%d'),
+            'reservation_end': self.reservation_end.strftime('%Y-%m-%d'),
+            'price': self.price
+        }
+
+
+class MembershipTier(db.Model):
+    __tablename__ = 'membership_tier'
+    tier_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tier_discount = db.Column(db.Integer, nullable=False)
+    tier_fee = db.Column(db.Integer, nullable=False)
+    tier_benefit = db.Column(db.Text, nullable=False)
+
+    def __init__(self, tier_id, tier_discount, tier_fee, tier_benefit):
+        self.tier_id = tier_id
+        self.tier_discount = tier_discount
+        self.tier_fee = tier_fee
+        self.tier_benefit = tier_benefit
+
+    def to_dict(self):
+        return {
+            'tier_id': self.tier_id,
+            'tier_discount': self.tier_discount,
+            'tier_fee': self.tier_fee,
+            'tier_benefit': self.tier_benefit
+        }
+
 
 @app.route("/")
 def index():
@@ -226,7 +287,9 @@ def pay():
 def prog():
     return render_template('program.html')
 
-
+@app.route('/trip')
+def trip():
+    return render_template('trip.html')
 @app.route('/api/data')
 def data():
     query = User.query.order_by(User.id)
@@ -617,6 +680,163 @@ def prog_update():
         'total': total,
     }, 200
 
+@app.route('/api/data/trip')
+def trip_data():
+    query = Trip.query.order_by(Trip.trip_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            Trip.trip_id.cast(db.String).like(f'%{search}%'),
+            Trip.tour_program_id.cast(db.String).like(f'%{search}%'),
+            Trip.start_date.cast(db.String).like(f'%{search}%'),
+            Trip.end_date.cast(db.String).like(f'%{search}%'),
+            Trip.number_of_customer.cast(db.String).like(f'%{search}%'),
+            Trip.reservation_start.cast(db.String).like(f'%{search}%'),
+            Trip.reservation_end.cast(db.String).like(f'%{search}%'),
+            Trip.price.cast(db.String).like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in trip_attrb:
+                name = 'trip_id'
+            col = getattr(Trip, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = Trip.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/trip', methods=['POST'])
+def trip_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = Trip.query.get(data['id'])
+    print("object", customer)
+    total = Trip.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['trip_id'] = total + 1
+        data['number_of_customer'] = 0
+        print("attempted to add", data)
+        entry = Trip(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.trip_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in trip_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        Trip.query.filter(
+            Trip.trip_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in Trip.query],
+        'total': total,
+    }, 200
+
+
+@app.route('/api/data/membership_tier')
+def tier_data():
+    query = MembershipTier.query.order_by(MembershipTier.tier_id)
+
+    # search filter
+    search = request.args.get('search')
+    if search:
+        query = query.filter(db.or_(
+            MembershipTier.tier_id.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_discount.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_fee.cast(db.String).like(f'%{search}%'),
+            MembershipTier.tier_benefit.like(f'%{search}%')
+        ))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get('sort')
+    if sort:
+        order = []
+        for s in sort.split(','):
+            direction = s[0]
+            name = s[1:]
+            if name not in tier_attrb:
+                name = 'tier_id'
+            col = getattr(MembershipTier, name)
+            if direction == '-':
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = MembershipTier.query.order_by(*order)
+
+    # pagination
+    start = request.args.get('start', type=int, default=-1)
+    length = request.args.get('length', type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    return {
+        'data': [tp.to_dict() for tp in query],
+        'total': total,
+    }
+
+
+@app.route('/api/data/membership_tier', methods=['POST'])
+def tier_update():
+    data = request.get_json()
+    print(data)
+    if 'id' not in data:
+        abort(400)
+    customer = MembershipTier.query.get(data['id'])
+    print("object", customer)
+    total = MembershipTier.query.count()
+    if (data['type'] == "add"):
+        data.pop('type')
+        data.pop('id')
+        data['tier_id'] = total + 1
+        print("attempted to add", data)
+        entry = MembershipTier(**data)
+        print("customer id askflaflsdhfjhdsjf", entry.tier_id)
+        db.session.add(entry)
+        db.session.commit()
+    elif (data['type'] == "edit"):
+        for field in tier_attrb:
+            if field in data:
+                setattr(customer, field, data[field])
+    elif (data['type'] == "delete"):
+        print("deleted", data["id"])
+        MembershipTier.query.filter(
+            MembershipTier.tier_id == data["id"]).delete()
+    db.session.commit()
+    return {
+        'data': [tp.to_dict() for tp in MembershipTier.query],
+        'total': total,
+    }, 200
 
 @app.route('/cus_report')
 def report_user_all():
@@ -849,60 +1069,146 @@ def payment_rep(customer_id):
     else:
         return "Customer not found.", 404
 
-@app.route("tourpro_report/<int:tour_id>")
-def tour_program_report(tour_id):
-    # Fetch tour details
-    tour = Tour.query.get(tour_id)
+@app.route("/cus_trip_report/<int:customer_id>/<int:trip_id>")
+def cus_trip_rep(customer_id, trip_id):
+    customer_trip = CustomerTrip.query.filter_by(customer_id=customer_id, trip_id=trip_id).first()
+    trip = Trip.query.get(trip_id)
+    
 
-    if tour:
+    if customer_trip and trip:
+        customer = Customer.query.get(customer_trip.customer_id)
         buffer = BytesIO()
-
         # Create a PDF document
         doc = SimpleDocTemplate(buffer, pagesize=A4)
-
-        # Define styles
-        styles = getSampleStyleSheet()
-        center_style = ParagraphStyle(name='Center', alignment=TA_CENTER)
         
-        # Create content for the PDF
-        content = []
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
 
-        # Title
-        title = Paragraph("Tour Program Report", styles['Title'])
-        content.append(title)
-        content.append(Spacer(1, 12))
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
 
-        # Tour information
-        tour_info = Paragraph(f"<b>Tour ID:</b> {tour.id}<br/><b>Name:</b> {tour.name}<br/><b>Description:</b> {tour.description}", styles['BodyText'])
-        content.append(tour_info)
-        content.append(Spacer(1, 12))
+        elements = []
 
-        # Tour schedule
-        schedule_title = Paragraph("<b>Tour Schedule:</b>", styles['Heading2'])
-        content.append(schedule_title)
-        content.append(Spacer(1, 6))
+        # Add trip details to the PDF
+        title = Paragraph("Trip Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
 
-        # Fetch tour schedules
-        schedules = TourSchedule.query.filter_by(tour_id=tour_id).all()
-        if schedules:
-            for schedule in schedules:
-                schedule_info = Paragraph(f"<b>Date:</b> {schedule.date.strftime('%Y-%m-%d')}<br/><b>Time:</b> {schedule.time}<br/><b>Location:</b> {schedule.location}", styles['BodyText'])
-                content.append(schedule_info)
-                content.append(Spacer(1, 6))
-        else:
-            content.append(Paragraph("No schedule available for this tour.", styles['BodyText']))
+        # Add trip information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Trip data
+        data = [
+            
+            ["Trip ID:", trip.trip_id],
+            ["Tour Program ID:", trip.tour_program_id],
+            ["Start Date:", trip.start_date.strftime('%d %b %Y')],
+            ["End Date:", trip.end_date.strftime('%d %b %Y')],
+            ["Number of Customers:", trip.number_of_customer],
+            ["Reservation Start:", trip.reservation_start.strftime('%d %b %Y')],
+            ["Reservation End:", trip.reservation_end.strftime('%d %b %Y')],
+            ["Price:", trip.price]
+        ]
+
+        # Create a table for trip data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
 
         # Build the PDF
-        doc.build(content)
+        doc.build(elements)
 
         # Reset buffer position
         buffer.seek(0)
 
         # Return PDF file to download
-        return send_file(buffer, as_attachment=True, download_name=f"Tour_Program_Report_{tour_id}.pdf")
+        return send_file(buffer, as_attachment=True, download_name=f"Trip_Report_{trip_id}.pdf")
     else:
-        return "Tour not found.", 404
+        return "Customer trip or trip not found.", 404
     
+@app.route("/trip_report/<int:trip_id>")
+def trip_report(trip_id):
+    # Query the trip from the database
+    trip = Trip.query.get(trip_id)
+
+    if trip:
+        buffer = BytesIO()
+
+        # Create a PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+
+        # Create a footer
+        def footer(canvas, doc):
+            date_text = "Generated on: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            canvas.drawRightString(A4[0] - 20, 20, date_text)
+
+        # Add footer template to the document
+        doc.build([], onLaterPages=footer)
+
+        elements = []
+
+        # Add trip details to the PDF
+        title = Paragraph("Trip Report", getSampleStyleSheet()['Title'])
+        elements.append(title)
+
+        # Add trip information
+        elements.append(Spacer(1, 20))  # Add space
+
+        # Trip data
+        data = [
+            ["Trip ID:", trip.trip_id],
+            ["Tour Program ID:", trip.tour_program_id],
+            ["Start Date:", trip.start_date.strftime('%d %b %Y')],
+            ["End Date:", trip.end_date.strftime('%d %b %Y')],
+            ["Number of Customers:", trip.number_of_customer],
+            ["Reservation Start:", trip.reservation_start.strftime('%d %b %Y')],
+            ["Reservation End:", trip.reservation_end.strftime('%d %b %Y')],
+            ["Price:", trip.price]
+        ]
+
+        # Create a table for trip data
+        table = Table(data, colWidths=[120, '*'])
+
+        # Style the table
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 12)
+        ])
+        table.setStyle(style)
+
+        elements.append(table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Reset buffer position
+        buffer.seek(0)
+
+        # Return PDF file to download
+        return send_file(buffer, as_attachment=True, download_name=f"Trip_Report_{trip_id}.pdf")
+    else:
+        return "Trip not found.", 404
+
 if __name__ == '__main__':
     app.debug = True
     app.run()

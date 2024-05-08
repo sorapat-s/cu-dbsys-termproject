@@ -7,30 +7,20 @@ var oldData = "";
 var newData = "";
 
 const VALIDATTRB = [
-  "tour_program_id",
-  "tour_program_name",
-  "max_number_of_customer",
-  "destination_city",
-  "destination_country",
-  "duration",
-  "min_price",
-  "max_price",
-  "tour_detail",
-  "airline",
+  "customer_id",
+  "tier_id",
+  "membership_payment_status",
+  "previous_payment_date",
+  "next_payment_date",
 ];
 const NOTNULLATTRB = [
-  "tour_program_id",
-  "tour_program_name",
-  "max_number_of_customer",
-  "destination_city",
-  "destination_country",
-  "duration",
-  "min_price",
-  "max_price",
-  "tour_detail",
-  "airline",
+  "customer_id",
+  "tier_id",
+  "membership_payment_status",
+  "previous_payment_date",
+  "next_payment_date",
 ];
-const APIPATH = "/api/data/tour_program";
+const APIPATH = "/api/data/membership";
 
 const tableDiv = document.getElementById("table");
 const addButton = document.getElementById("addbutton");
@@ -60,7 +50,7 @@ const editableCellAttributes = (data, row, col) => {
     return {
       contentEditable: "true",
       "data-element-id": row.cells[0].data,
-      tourID: row.cells[0].data,
+      customerID: row.cells[0].data,
     };
   } else {
     return {};
@@ -69,42 +59,29 @@ const editableCellAttributes = (data, row, col) => {
 
 var grid = new gridjs.Grid({
   columns: [
-    { id: "tour_program_id" },
+    { id: "customer_id", name: "Customer ID" },
+    { id: "tier_id", name: "Tier ID", attributes: editableCellAttributes },
     {
-      id: "tour_program_name",
-      name: "Name",
+      id: "membership_payment_status",
+      name: "Status",
       attributes: editableCellAttributes,
     },
     {
-      id: "max_number_of_customer",
-      name: "Max Customer",
+      id: "previous_payment_date",
+      name: "Last Paid",
       attributes: editableCellAttributes,
     },
     {
-      id: "destination_city",
-      name: "Destination City",
+      id: "next_payment_date",
+      name: "Current Due",
       attributes: editableCellAttributes,
     },
-    {
-      id: "destination_country",
-      name: "Country",
-      attributes: editableCellAttributes,
-    },
-    { id: "duration", name: "Duration", attributes: editableCellAttributes },
-    { id: "min_price", name: "Min Price", attributes: editableCellAttributes },
-    { id: "max_price", name: "Max Price", attributes: editableCellAttributes },
-    {
-      id: "tour_detail",
-      name: "Tour Detail",
-      attributes: editableCellAttributes,
-    },
-    { id: "airline", name: "Airline", attributes: editableCellAttributes },
     {
       id: "actions",
       sort: false,
       formatter: (cell, row) =>
         gridjs.html(
-          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button> <button type="button" onclick="generateReport(${row.cells[0].data})">Generate Report</button>`
+          `<button type="button" onclick="triggerDelete(${row.cells[0].data})">Delete</button>`
         ),
     },
   ],
@@ -127,16 +104,11 @@ var grid = new gridjs.Grid({
     server: {
       url: (prev, columns) => {
         const columnIds = [
-          "tour_program_id",
-          "tour_program_name",
-          "max_number_of_customer",
-          "destination_city",
-          "destination_country",
-          "duration",
-          "min_price",
-          "max_price",
-          "tour_detail",
-          "airline",
+          "customer_id",
+          "tier_id",
+          "membership_payment_status",
+          "previous_payment_date",
+          "next_payment_date",
         ];
         const sort = columns.map(
           (col) => (col.direction === 1 ? "+" : "-") + columnIds[col.index]
@@ -200,10 +172,6 @@ function cancelEdit() {
 
   resetVar();
   editModal.close();
-}
-
-function generateReport(tour_program_id) {
-  window.location.href = `/tour_program_report/${tour_program_id}`;
 }
 
 function triggerEdit() {

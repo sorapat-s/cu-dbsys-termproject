@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Promotion Table</title>
+    <link rel="stylesheet" href="../static/css/styles.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Promotion Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+      
+      <div id="table"></div>
+      <dialog id="deletemodal" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button id="deleteclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button id="deleteconfirm" class="button">Delete</button>
+
+        <button id="deletecancel" class="button">Cancel</button>
+      </dialog>
+      <dialog id="editmodal" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button id="editclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button id="editconfirm" class="button">
+          Confirm
+        </button>
+
+        <button id="editcancel" class="button">Cancel</button>
+      </div>
+      <dialog id="addmodal" class="modal">
+        <header>
+          <h2>Add entry</h2>
+          <button id="addclose" clase="close">Close</button>
+        </header>
+
+        <form id="addform">
+            <input title="promotion_name" placeholder="Promotion Name" type="text" name="promotion_name" required> </br>
+            <input title="promotion_banner" placeholder="Promotion Banner" type="text" name="promotion_banner" required> </br>
+            <input title="applicable_trip" placeholder="Applicable Trip" type="text" name="applicable_trip" required> </br>
+            <select title="promotion_status" name="promotion_status" id="promochoose">
+                <option value="">--Please choose payment status--</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select> </br>
+            <button id="addconfirm" type="submit"> Submit </button>
+        </form>
+      </dialog>
+      <button id="addbutton" class="addbutton">Add</button>
+    </div>
+    
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script src="../static/js/promotion.js"></script>
+  </body>
+</html>

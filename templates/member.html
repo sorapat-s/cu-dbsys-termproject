@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Membership Tier Table</title>
+    <link rel="stylesheet" href="../static/css/styles.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png" />
+    <style>
+      body {
+        font-family: Sans-Serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Membership Tier Table</h1>
+      <button class="tablebutton">Table 1</button>
+      <button class="tablebutton">Table 2</button>
+      <button class="tablebutton">Table 3</button>
+      <button class="tablebutton">Table 4</button>
+      <button class="tablebutton">Table 5</button>
+      <hr />
+
+      <div id="table"></div>
+      <dialog id="deletemodal" class="modal">
+        <header>
+          <h2>Delete entry</h2>
+          <button id="deleteclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="deltext">Are you sure?</p>
+        </section>
+
+        <button id="deleteconfirm" class="button">Delete</button>
+
+        <button id="deletecancel" class="button">Cancel</button>
+      </dialog>
+      <dialog id="editmodal" class="modal">
+        <header>
+          <h2>Edit entry</h2>
+          <button id="editclose" class="close">Close</button>
+        </header>
+
+        <section>
+          <p id="edittext">Change</p>
+        </section>
+
+        <button id="editconfirm" class="button">
+          Confirm
+        </button>
+
+        <button id="editcancel" class="button">Cancel</button>
+      </div>
+      <dialog id="addmodal" class="modal">
+        <header>
+          <h2>Add entry</h2>
+          <button id="addclose" clase="close">Close</button>
+        </header>
+
+        <form id="addform">
+            <input title="customer_id" placeholder="Customer ID" type="number" name="customer_id" required> </br>
+            <input title="tier_id" placeholder="Tier ID" type="number" name="tier_id" required> </br>
+            <select title="membership_payment_status" name="membership_payment_status" id="paychoose">
+                <option value="">--Please choose payment status--</option>
+                <option value="true">Paid</option>
+                <option value="false">Unpaid</option>
+            </select> </br>
+            <input title="previous_payment_date" type="date" name="previous_payment_date" required> </br>
+            <input title="next_payment_date" type="date" name="next_payment_date" required> </br>
+            <button id="addconfirm" type="submit"> Submit </button>
+        </form>
+      </dialog>
+      <button id="addbutton" class="addbutton">Add</button>
+    </div>
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <script src="../static/js/member.js"></script>
+  </body>
+</html>
